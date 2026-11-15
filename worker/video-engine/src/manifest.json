@@ -1,0 +1,19 @@
+{
+  "meter_label": "COMPLEXITY",
+  "meter_max": 5,
+  "aspect_ratio": "16:9",
+  "beats": [
+    {
+      "id": "beat-1",
+      "chapter_title": "INTRO",
+      "meter_score": 1,
+      "visual_type": "TITLE_SLAM",
+      "headline": "AI Explainer Studio Ready",
+      "narration": "Welcome to your cloud video engine.",
+      "bullets": ["100% Cloud Automated", "Word-Synced Motion Graphics", "Mobile & Desktop Ready"],
+      "audioFile": "",
+      "durationInFrames": 180,
+      "words": []
+    }
+  ]
+}
