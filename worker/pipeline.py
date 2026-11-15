@@ -2,6 +2,7 @@ import os, sys, json, asyncio, requests
 from google import genai
 from pydantic import BaseModel
 import edge_tts
+from gtts import gTTS
 from faster_whisper import WhisperModel
 
 PROJECT_ID = sys.argv[1]
@@ -48,6 +49,20 @@ class VideoPlan(BaseModel):
     aspect_ratio: str
     beats: list[Beat]
 
+async def synthesize_audio(text: str, voice_id: str, out_path: str):
+    clean_text = (text or "Let us examine this step.").strip()
+    for attempt in range(3):
+        try:
+            comm = edge_tts.Communicate(clean_text, voice_id, rate="+8%")
+            await comm.save(out_path)
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+                return
+        except Exception as e:
+            print(f"[edge-tts attempt {attempt + 1} failed]: {e}")
+            await asyncio.sleep(2)
+    print("[Falling back to gTTS for reliable audio synthesis]")
+    gTTS(text=clean_text, lang="en").save(out_path)
+
 async def run():
     try:
         notify_webhook("GENERATING_SCRIPT", 20)
@@ -71,8 +86,7 @@ async def run():
 
         for idx, beat in enumerate(plan["beats"]):
             mp3_path = f"{audio_dir}/beat_{idx}.mp3"
-            comm = edge_tts.Communicate(beat["narration"], VOICE_ID, rate="+8%")
-            await comm.save(mp3_path)
+            await synthesize_audio(beat["narration"], VOICE_ID, mp3_path)
 
             segments, _ = whisper.transcribe(mp3_path, word_timestamps=True)
             words = [
