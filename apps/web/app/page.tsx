@@ -13,13 +13,15 @@ export default function StudioPage() {
   const [voiceId, setVoiceId] = useState("en-US-AndrewNeural");
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     supabase
       .from("video_projects")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) setErrorMsg(`Supabase read error: ${error.message}`);
         if (data) setProjects(data);
       });
 
@@ -43,13 +45,27 @@ export default function StudioPage() {
     e.preventDefault();
     if (!topic.trim()) return;
     setLoading(true);
-    await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic, voiceId, aspectRatio }),
-    });
-    setTopic("");
-    setLoading(false);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, voiceId, aspectRatio }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.error || `Error ${res.status}: Failed to start job`);
+      } else if (data.project) {
+        setProjects((prev) => [data.project, ...prev.filter((p) => p.id !== data.project.id)]);
+        setTopic("");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Network error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -112,6 +128,12 @@ export default function StudioPage() {
           >
             {loading ? "Dispatching to Cloud..." : "⚡ Generate Explainer Video"}
           </button>
+
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-red-950/60 border border-red-700 text-xs text-red-300">
+              {errorMsg}
+            </div>
+          )}
         </form>
 
         {/* Video Vault & Live Render Status */}
