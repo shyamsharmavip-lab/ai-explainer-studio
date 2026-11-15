@@ -25,7 +25,12 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          cd worker/video-engine && npm install
+          sudo apt-get update && sudo apt-get install -y ffmpeg libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 || sudo apt-get install -y ffmpeg libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
+          cd worker/video-engine
+          rm -rf node_modules package-lock.json
+          npm install
+          chmod -R +x node_modules/.bin
+          cd ../..
           pip install -U google-genai edge-tts gTTS faster-whisper pydantic supabase requests
 
       - name: Generate AI Script & Word-Synced Audio
@@ -36,7 +41,10 @@ jobs:
         run: python worker/pipeline.py "${{ github.event.inputs.project_id }}" "${{ github.event.inputs.topic }}" "${{ github.event.inputs.voice_id }}" "${{ github.event.inputs.aspect_ratio }}"
 
       - name: Render 60fps MP4
-        run: cd worker/video-engine && npx remotion render src/index.ts ExplainerVideo out/video.mp4
+        run: |
+          cd worker/video-engine
+          mkdir -p out
+          ./node_modules/.bin/remotion render src/index.ts ExplainerVideo out/video.mp4
 
       - name: Upload MP4 to Supabase Storage
         env:
