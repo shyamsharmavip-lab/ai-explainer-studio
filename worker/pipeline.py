@@ -11,20 +11,27 @@ ASPECT_RATIO = sys.argv[4] if len(sys.argv) > 4 else "16:9"
 FPS = 60
 
 def notify_webhook(status: str, progress: int, video_url: str = None, error_msg: str = None):
-    if not os.environ.get("WEBHOOK_URL"):
+    webhook_url = os.environ.get("WEBHOOK_URL", "").strip()
+    webhook_secret = os.environ.get("WEBHOOK_SECRET", "").strip()
+    if not webhook_url:
+        print(f"[Webhook skipped - WEBHOOK_URL not set] {status} ({progress}%)")
         return
-    requests.post(
-        os.environ["WEBHOOK_URL"],
-        headers={"x-webhook-secret": os.environ["WEBHOOK_SECRET"]},
-        json={
-            "projectId": PROJECT_ID,
-            "status": status,
-            "progress": progress,
-            "videoUrl": video_url,
-            "errorMessage": error_msg,
-        },
-        timeout=15,
-    )
+    try:
+        res = requests.post(
+            webhook_url,
+            headers={"x-webhook-secret": webhook_secret},
+            json={
+                "projectId": PROJECT_ID,
+                "status": status,
+                "progress": progress,
+                "videoUrl": video_url,
+                "errorMessage": error_msg,
+            },
+            timeout=15,
+        )
+        print(f"[Webhook {status} {progress}%] HTTP {res.status_code}")
+    except Exception as wh_err:
+        print(f"[Webhook warning] {wh_err}")
 
 class Beat(BaseModel):
     id: str
@@ -44,13 +51,13 @@ class VideoPlan(BaseModel):
 async def run():
     try:
         notify_webhook("GENERATING_SCRIPT", 20)
-        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
         prompt = f"""Create a 5-beat tech explainer video script about: {TOPIC}.
         Keep each narration 12-22 words. Alternate visual_type across TITLE_SLAM, TERMINAL_LOG, QUIZ_CARD, and STICKY_CHECKLIST.
         Include 3 concise bullets or code lines per beat."""
 
         res = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=prompt,
             config={"response_mime_type": "application/json", "response_schema": VideoPlan},
         )
